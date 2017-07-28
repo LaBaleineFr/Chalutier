@@ -1,0 +1,19 @@
+version: "3"
+services: 
+    chalutier-api:
+        restart: always
+        image: $HUB_URL:$TAG
+        networks: 
+            - web
+            - backend
+        environment:
+            - VIRTUAL_HOST=api.chalutier.036.fr
+            - VIRTUAL_PORT=5000
+            - LETSENCRYPT_HOST=api.chalutier.036.fr
+            - LETSENCRYPT_EMAIL=sushifu@gmx.fr
+
+networks:
+    web:
+        external: true
+    backend:
+        external: true
