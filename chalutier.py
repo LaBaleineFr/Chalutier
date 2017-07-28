@@ -3,6 +3,8 @@
 
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from flask import Flask, request as req, make_response, jsonify, abort
@@ -153,4 +155,4 @@ def markowitz_optimization(historicalstatuses, eval=False):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=debug)
