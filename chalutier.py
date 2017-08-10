@@ -8,11 +8,13 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 from flask import Flask, request as req, make_response, jsonify, abort
+from flask_cors import CORS
 import time
 import requests
 
 
 app = Flask(__name__)
+CORS(app)
 
 # With debug True, slower computation due to multiple evalutations to plot a figure
 debug = False
