@@ -4,7 +4,7 @@
 import argparse
 import json
 
-from optimiz.optimiz import optimiz
+import optimiz as optimiz
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', default=False)
@@ -15,4 +15,4 @@ args = vars(parser.parse_args())
 debug = args['debug']
 
 if args['currencies'] is not None:
-  print(json.dumps(optimiz(args['currencies'], debug), indent=2))
+  print(json.dumps(optimiz.optimiz(args['currencies'], debug), indent=2))
