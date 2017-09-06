@@ -11,6 +11,7 @@ from flask import Flask, request as req, make_response, jsonify, abort
 from flask_cors import CORS
 import time
 import requests
+import argparse
 
 
 app = Flask(__name__)
@@ -18,6 +19,12 @@ CORS(app)
 
 # With debug True, slower computation due to multiple evalutations to plot a figure
 debug = False
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--port', default=5000)
+
+args = vars(parser.parse_args())
 
 
 @app.route('/')
@@ -84,7 +91,7 @@ def returns(df):
     """
     Compute the returns from a period to the next
     :param df:  Lows, Highs, Opens, Closes
-    :return: 
+    :return:
     """
     df_returns = df.copy()
     df_returns.fillna(method='ffill', inplace=True)
@@ -157,4 +164,5 @@ def markowitz_optimization(historicalstatuses, eval=False):
 
 
 if __name__ == '__main__':
-    app.run(debug=debug, host= '0.0.0.0')
+    app.run(debug=debug, host= '0.0.0.0', port=args['port'])
+    print('blbl')
