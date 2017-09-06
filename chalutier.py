@@ -165,4 +165,3 @@ def markowitz_optimization(historicalstatuses, eval=False):
 
 if __name__ == '__main__':
     app.run(debug=debug, host= '0.0.0.0', port=args['port'])
-    print('blbl')
