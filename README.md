@@ -2,6 +2,11 @@
 
 Outil d'aide à la décision d'optimisation de portefeuille de cryptomonnaies
 
+## Installation
+```
+pip3 install -r requirements.txt
+```
+
 ## Utilisation
 
 ### CLI
