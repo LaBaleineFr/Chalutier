@@ -1,10 +1,33 @@
 # Chalutier
+
 Outil d'aide à la décision d'optimisation de portefeuille de cryptomonnaies
+Construit un portefeuille efficient de Markowitz sur les cinq derniers jours
 
-## Endpoint
+## Installation
+```
+pip3 install -r requirements.txt
+```
 
-POST
-``` http://localhost:5000/optimise ```
+## Utilisation
+
+### CLI
+```
+python3 chalutier-cli.py --currencies LTC SC XVG
+```
+
+### Service web
+```
+python3 chalutier.py
+```
+
+Utiliser le paramètre `--port` pour changer le port du service
+
+#### Endpoint
+
+
+```
+POST http://localhost:5000/optimise
+```
 
 BODY :
 ```
