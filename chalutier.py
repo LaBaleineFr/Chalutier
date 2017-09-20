@@ -5,7 +5,7 @@ from flask import Flask, request as req, make_response, jsonify, abort
 from flask_cors import CORS
 import argparse
 
-from optimiz.optimiz import optimiz
+import optimiz as optimiz
 
 app = Flask(__name__)
 
@@ -28,7 +28,7 @@ def index():
 def optimise():
     if not req.json or not 'currencies' in req.json:
         return make_response(jsonify({'error': 'Wrong usage'}), 400)
-    return make_response(jsonify(optimiz(req.json['currencies'], debug)), 200)
+    return make_response(jsonify(optimiz.optimiz(req.json['currencies'], debug)), 200)
 
 @app.errorhandler(404)
 def not_found(error):
