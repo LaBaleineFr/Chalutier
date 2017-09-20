@@ -1,6 +1,7 @@
 # Chalutier
 
 Outil d'aide à la décision d'optimisation de portefeuille de cryptomonnaies
+Construit un portefeuille efficient de Markowitz sur les cinq derniers jours
 
 ## Installation
 ```
@@ -19,7 +20,7 @@ python3 chalutier-cli.py --currencies LTC SC XVG
 python3 chalutier.py
 ```
 
-Utiliser le paramère `--port` pour changer le port du service
+Utiliser le paramètre `--port` pour changer le port du service
 
 #### Endpoint
 
