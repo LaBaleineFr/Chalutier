@@ -119,6 +119,9 @@ def optimiz(currencies, debug):
     if len(currencies) < 2 or len(currencies) > 10:
         return {"error": "2 to 10 currencies"}
     data = [get_ochl(cur) for cur in currencies]
+    errors = [x['error'] for x in data if 'error' in x]
+    if errors:
+        raise ValueError("\n".join(errors))
     weights, m, s, a, b = markowitz_optimization(data, debug)
     if debug is True:
         fig, ax = plt.subplots()
