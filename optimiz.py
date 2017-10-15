@@ -121,7 +121,7 @@ def optimiz(currencies, debug):
     data = [get_ochl(cur) for cur in currencies]
     errors = [x['error'] for x in data if 'error' in x]
     if errors:
-        raise ValueError("\n".join(errors))
+        return {"error": "\n".join(errors)}
     weights, m, s, a, b = markowitz_optimization(data, debug)
     if debug is True:
         fig, ax = plt.subplots()
