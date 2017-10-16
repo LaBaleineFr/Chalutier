@@ -9,17 +9,28 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 import time
 import requests
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+
 
 def get_ochl(currency):
     end = round(time.time())
     # 5 days of data, 30 min periods
     start = end - 5 * 86400
     cur = currency.upper()
-    url = "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_" + cur + "&start=" + str(start) + \
-          "&end=" + str(end) + "&period=1800"
-    content = requests.get(url)
-    data = content.json()
-    if 'error' in data:
+
+    def poloniex():
+        url = "https://poloniex.com/public?command=returnChartData&currencyPair=BTC_" + cur + "&start=" + str(start) + \
+              "&end=" + str(end) + "&period=1800"
+        content = requests.get(url)
+        data = content.json()
+        if 'error' in data:
+            return {'error': "Currency not found : " + currency}
+        df = pd.DataFrame.from_dict(data)
+        df['date'] = pd.to_datetime(df['date'], unit='s')
+        df.set_index(['date'], inplace=True)
+        return df
+
+    def bittrex():
         url = "https://bittrex.com/Api/v2.0/pub/market/GetTicks?marketName=BTC-" + cur + "&tickInterval=thirtyMin&_=" +\
               str(end)
         content = requests.get(url)
@@ -32,14 +43,14 @@ def get_ochl(currency):
         df['date'] = pd.to_datetime(df['date'])
         # keep consistent between polo and bittrex 5 day * 30 minutes -> 240 ticks
         df = df.tail(240)
+        df.set_index(['date'], inplace=True)
+        return df
 
-    else:
-        df = pd.DataFrame.from_dict(data)
-        df['date'] = pd.to_datetime(df['date'], unit='s')
+    executor = ThreadPoolExecutor()
+    future = wait([executor.submit(poloniex), executor.submit(bittrex)], return_when=FIRST_COMPLETED)
+    df = future.done.pop().result()
 
-    df.set_index(['date'], inplace=True)
-
-    return df
+    return df if 'error' not in df else future.not_done.pop().result()
 
 def returns(df):
     """
@@ -118,7 +129,8 @@ def markowitz_optimization(historicalstatuses, eval=False):
 def optimiz(currencies, debug):
     if len(currencies) < 2 or len(currencies) > 10:
         return {"error": "2 to 10 currencies"}
-    data = [get_ochl(cur) for cur in currencies]
+    executor = ThreadPoolExecutor()
+    data = [future.result() for future in wait([executor.submit(get_ochl, cur) for cur in currencies]).done]
     errors = [x['error'] for x in data if 'error' in x]
     if errors:
         return {"error": "\n".join(errors)}
