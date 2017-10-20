@@ -4,11 +4,9 @@
 from flask import Flask, request as req, make_response, jsonify, abort
 from flask_cors import CORS
 import argparse
-
 import optimiz as optimiz
 
 app = Flask(__name__)
-
 CORS(app)
 
 parser = argparse.ArgumentParser()
@@ -36,4 +34,4 @@ def not_found(error):
 
 
 if __name__ == '__main__':
-    app.run(debug=debug, host= '0.0.0.0', port=args['port'])
+    app.run(debug=debug, host='0.0.0.0', port=args['port'])
