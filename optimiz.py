@@ -77,8 +77,8 @@ def get_ochl(currency, max_workers):
         return_when=FIRST_COMPLETED
     )
     df = future.done.pop().result()
-
-    return df if 'error' not in df else future.not_done.pop().result()
+    df = df if 'error' not in df else future.not_done.pop().result()
+    return cur, df
 
 def returns(df):
     """Compute the returns from a period to the next
@@ -108,6 +108,21 @@ def rand_weights(n):
     weights = np.random.rand(n)
     return weights / np.sum(weights)
 
+def evaluate_portefolio(wei, returns_vec):
+    """ Given a repartition, compute the expected return and risk from a portefolio 
+    
+    :param wei: Weights for each currency
+    :type wei: ndarray of float
+    :return: expected return and risk
+    :rtype: (float, float)
+    """
+    p = np.asmatrix(np.mean(returns_vec, axis=1))
+    w = np.asmatrix(wei)
+    c = np.asmatrix(np.cov(returns_vec))
+    mu = w * p.T
+    sigma = np.sqrt(w * c * w.T)
+    return mu, sigma
+
 def markowitz_optimization(historical_statuses, eval=False):
     """ Construct efficient Markowitz Portefolio
 
@@ -117,24 +132,11 @@ def markowitz_optimization(historical_statuses, eval=False):
     TODO : implement short selling (numeric instability w/ constraints)
     """
     nb_currencies = len(historical_statuses)
-    lowest_index = np.min([i['close'].size for i in historical_statuses])
-    returns_vec = [returns(singlecurrency)['close'].ix[:lowest_index - 1].values for singlecurrency in
+    lowest_size = np.min([i['close'].size for i in historical_statuses])
+    returns_vec = [returns(singlecurrency)['close'].tail(lowest_size).values for singlecurrency in
                    historical_statuses]
 
-    def evaluate_portefolio(wei):
-        """ Given a repartition, compute the expected return and risk from a portefolio 
-        
-        :param wei: Weights for each currency
-        :type wei: ndarray of float
-        :return: expected return and risk
-        :rtype: (float, float)
-        """
-        p = np.asmatrix(np.mean(returns_vec, axis=1))
-        w = np.asmatrix(wei)
-        c = np.asmatrix(np.cov(returns_vec))
-        mu = w * p.T
-        sigma = np.sqrt(w * c * w.T)
-        return mu, sigma
+
 
     def optimal_portfolio():
         def con_sum(t):
@@ -162,20 +164,23 @@ def markowitz_optimization(historical_statuses, eval=False):
     else:
         n_portfolios = 1
     means, stds = np.column_stack([
-        evaluate_portefolio(rand_weights(nb_currencies))
+        evaluate_portefolio(rand_weights(nb_currencies), returns_vec)
         for _ in range(n_portfolios)
     ])
 
+    #weights = opt2(returns_vec).flatten() #imal_portfolio()
     weights = optimal_portfolio()
-    opt_mean, opt_std = evaluate_portefolio(weights)
+    opt_mean, opt_std = evaluate_portefolio(weights, returns_vec)
     return weights, means, stds, opt_mean, opt_std
 
 def optimiz(currencies, debug):
+    currencies = sorted(currencies)
     if len(currencies) < 2 or len(currencies) > 10:
         return {"error": "2 to 10 currencies"}
     max_workers = 4 if sys.version_info[1] < 5 else None
     executor = ThreadPoolExecutor(max_workers)
-    data = [future.result() for future in wait([executor.submit(get_ochl, cur, max_workers) for cur in currencies]).done]
+    data = dict(future.result() for future in wait([executor.submit(get_ochl, cur, max_workers) for cur in currencies]).done)
+    data = [data[cur] for cur in currencies]
     errors = [x['error'] for x in data if 'error' in x]
     if errors:
         return {"error": "\n".join(errors)}
