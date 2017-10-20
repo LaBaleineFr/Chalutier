@@ -6,78 +6,39 @@ import time
 import requests
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.pyplot as plt
 from scipy.optimize import minimize
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, wait
 
 
-def get_ochl(currency, max_workers):
+def get_ochl(currency):
     """ Get OCHL Data from Poloniex or Bittrex
 
     :param currency: Currency wanted
-    :param max_workers: Needed for Python < 3.5
     :type currency: str
-    :type max_workers: int
     :return: OCHL Data
     :rtype: DataFrame
     """
     end = round(time.time())
-    # 5 days of data, 30 min periods
-    start = end - 5 * 86400
     cur = currency.upper()
-
-    def poloniex():
-        """ Pull data from Poloniex exchange """
-        url = ''.join((
-            'https://poloniex.com/public?command=returnChartData&currencyPair=BTC_',
-            cur,
-            '&start=',
-            str(start),
-            '&end=',
-            str(end),
-            '&period=1800'
-        ))
-        content = requests.get(url)
-        data = content.json()
-        if 'error' in data:
-            return {'error': 'Currency not found : ' + currency}
-        df = pd.DataFrame.from_dict(data)
-        df['date'] = pd.to_datetime(df['date'], unit='s')
-        df.set_index(['date'], inplace=True)
-        return df
-
-    def bittrex():
-        """ Pull data from Bittrex exchange """
-        url = ''.join((
-            'https://bittrex.com/Api/v2.0/pub/market/GetTicks?marketName=BTC-',
-            cur,
-            '&tickInterval=thirtyMin&_=',
-            str(end)
-        ))
-        content = requests.get(url)
-        data = content.json()
-        if not data['success']:
-            return {'error': 'Currency not found : ' + currency}
-        df = pd.DataFrame.from_dict(data['result'])
-        df.rename(
-            columns={'C': 'close', 'H': 'high', 'L': 'low', 'O': 'open', 'T': 'date', 'V': 'volume'},
-            inplace=True
-        )
-        df['date'] = pd.to_datetime(df['date'])
-        # keep consistent between polo and bittrex 5 day * 30 minutes -> 240 ticks
-        df = df.tail(240)
-        df.set_index(['date'], inplace=True)
-        return df
-
-    executor = ThreadPoolExecutor(max_workers=max_workers)
-    future = wait(
-        [executor.submit(poloniex), executor.submit(bittrex)],
-        return_when=FIRST_COMPLETED
+    url = ''.join((
+        'https://bittrex.com/Api/v2.0/pub/market/GetTicks?marketName=BTC-',
+        cur,
+        '&tickInterval=thirtyMin&_=',
+        str(end)
+    ))
+    content = requests.get(url)
+    data = content.json()
+    if not data['success']:
+        return cur, {'error': currency}
+    df = pd.DataFrame.from_dict(data['result'])
+    df.rename(
+        columns={'C': 'close', 'H': 'high', 'L': 'low', 'O': 'open', 'T': 'date', 'V': 'volume'},
+        inplace=True
     )
-    df = future.done.pop().result()
-    df = df if 'error' not in df else future.not_done.pop().result()
+    df['date'] = pd.to_datetime(df['date'])
+    # 5 day * 30 minutes -> 240 ticks
+    df = df.tail(240)
+    df.set_index(['date'], inplace=True)
     return cur, df
 
 def returns(df):
@@ -109,8 +70,8 @@ def rand_weights(n):
     return weights / np.sum(weights)
 
 def evaluate_portefolio(wei, returns_vec):
-    """ Given a repartition, compute the expected return and risk from a portefolio 
-    
+    """ Given a repartition, compute expected return and risk from a portefolio
+
     :param wei: Weights for each currency
     :type wei: ndarray of float
     :return: expected return and risk
@@ -123,7 +84,7 @@ def evaluate_portefolio(wei, returns_vec):
     sigma = np.sqrt(w * c * w.T)
     return mu, sigma
 
-def markowitz_optimization(historical_statuses, eval=False):
+def markowitz_optimization(historical_statuses, evaluate=False):
     """ Construct efficient Markowitz Portefolio
 
     :param historical_statuses: 5 days OCHL of at least two currencies
@@ -153,13 +114,18 @@ def markowitz_optimization(historical_statuses, eval=False):
             c = np.asmatrix(np.cov(returns_vec))
             return ws * c * ws.T
 
-        wei = rand_weights(nb_currencies)
         cons = [{'type': 'eq', 'fun': con_sum}, ]
         # Short ? add no_short constraint  -> cons.append...
-        res = minimize(quadra_risk_portefolio, wei, constraints=cons, tol=1e-10, options={'disp': False})
+        res = minimize(
+            quadra_risk_portefolio,
+            rand_weights(nb_currencies),
+            method='SLSQP',
+            constraints=cons,
+            options={'disp': False, 'ftol':1e-16,}
+        )
         return res.x
 
-    if eval:
+    if evaluate:
         n_portfolios = 1000
     else:
         n_portfolios = 1
@@ -179,13 +145,16 @@ def optimiz(currencies, debug):
         return {"error": "2 to 10 currencies"}
     max_workers = 4 if sys.version_info[1] < 5 else None
     executor = ThreadPoolExecutor(max_workers)
-    data = dict(future.result() for future in wait([executor.submit(get_ochl, cur, max_workers) for cur in currencies]).done)
+    data = dict(future.result() for future in wait([executor.submit(get_ochl, cur) for cur in currencies]).done)
     data = [data[cur] for cur in currencies]
     errors = [x['error'] for x in data if 'error' in x]
     if errors:
-        return {"error": "\n".join(errors)}
+        return {"error": "Currencies not found : " + str(errors)}
     weights, m, s, a, b = markowitz_optimization(data, debug)
     if debug:
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         plt.plot(s, m, 'o', markersize=1)
         plt.plot(b, a, 'or')
