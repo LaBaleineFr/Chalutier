@@ -1,9 +1,11 @@
 # Chalutier
 
 Outil d'aide à la décision d'optimisation de portefeuille de cryptomonnaies
-Construit un portefeuille efficient de Markowitz sur les cinq derniers jours
+
+Construit un portefeuille efficient de Markowitz sur les cinq derniers jours.
 
 ## Installation
+Testé pour python 3.[4,5,6]
 ```
 pip3 install -r requirements.txt
 ```

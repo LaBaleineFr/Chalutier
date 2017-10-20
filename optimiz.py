@@ -1,18 +1,19 @@
 #!/usr/bin/python3.6
 # -*- coding: utf-8 -*-
 
+import sys
+import time
+import requests
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
-import time
-import requests
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 
-def get_ochl(currency):
+def get_ochl(currency, max_workers):
     end = round(time.time())
     # 5 days of data, 30 min periods
     start = end - 5 * 86400
@@ -45,8 +46,8 @@ def get_ochl(currency):
         df = df.tail(240)
         df.set_index(['date'], inplace=True)
         return df
-
-    executor = ThreadPoolExecutor()
+    
+    executor = ThreadPoolExecutor(max_workers=max_workers)
     future = wait([executor.submit(poloniex), executor.submit(bittrex)], return_when=FIRST_COMPLETED)
     df = future.done.pop().result()
 
@@ -129,8 +130,9 @@ def markowitz_optimization(historicalstatuses, eval=False):
 def optimiz(currencies, debug):
     if len(currencies) < 2 or len(currencies) > 10:
         return {"error": "2 to 10 currencies"}
-    executor = ThreadPoolExecutor()
-    data = [future.result() for future in wait([executor.submit(get_ochl, cur) for cur in currencies]).done]
+    max_workers = 4 if sys.version_info[1] < 5 else None
+    executor = ThreadPoolExecutor(max_workers)
+    data = [future.result() for future in wait([executor.submit(get_ochl, cur, max_workers) for cur in currencies]).done]
     errors = [x['error'] for x in data if 'error' in x]
     if errors:
         return {"error": "\n".join(errors)}
